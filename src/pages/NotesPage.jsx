@@ -1,34 +1,61 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useNotes } from '../utils/Context';
+import { getActiveNotes } from '../utils/api';
+import { useTheme } from '../utils/ThemeContext';
 import SearchBar from '../components/SearchBar';
 import NoteItem from '../components/NoteItem';
 
 const NotesPage = () => {
-  const { getActiveNotes } = useNotes();
+  const [notes, setNotes] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchParams] = useSearchParams();
+  const { texts } = useTheme();
   const keyword = searchParams.get('keyword') || '';
 
-  const activeNotes = getActiveNotes();
+  useEffect(() => {
+    const fetchNotes = async () => {
+      try {
+        setIsLoading(true);
+        const notesData = await getActiveNotes();
+        setNotes(notesData);
+      } catch (error) {
+        console.error('Error fetching notes:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchNotes();
+  }, []);
+
   const filteredNotes = keyword 
-    ? activeNotes.filter(note => 
+    ? notes.filter(note => 
         note.title.toLowerCase().includes(keyword.toLowerCase())
       )
-    : activeNotes;
+    : notes;
+
+  if (isLoading) {
+    return (
+      <div className="loading-container">
+        <div className="loading-spinner"></div>
+        <p>Loading notes...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="notes-page">
       <div className="search-container">
-        <SearchBar placeholder="Cari catatan aktif..." />
+        <SearchBar placeholder={texts.searchActive} />
       </div>
       <div className="notes-list">
         {filteredNotes.length > 0 ? (
           filteredNotes.map(note => (
-            <NoteItem key={note.id} note={note} />
+            <NoteItem key={note.id} note={note} onUpdate={() => window.location.reload()} />
           ))
         ) : (
-          <div className="empty-message">
-            {keyword ? `Tidak ada catatan dengan kata kunci "${keyword}"` : 'Tidak ada catatan'}
+          <div className="empty-state">
+            <h3>{keyword ? `No notes found for "${keyword}"` : texts.noNotes}</h3>
           </div>
         )}
       </div>

@@ -1,33 +1,61 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useNotes } from '../utils/Context';
+import { getArchivedNotes } from '../utils/api';
+import { useTheme } from '../utils/ThemeContext';
 import SearchBar from '../components/SearchBar';
 import NoteItem from '../components/NoteItem';
 
 const ArchivedPage = () => {
-  const { getArchivedNotes } = useNotes();
+  const [notes, setNotes] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchParams] = useSearchParams();
+  const { texts } = useTheme();
   const keyword = searchParams.get('keyword') || '';
 
-  const archivedNotes = getArchivedNotes();
+  useEffect(() => {
+    const fetchNotes = async () => {
+      try {
+        setIsLoading(true);
+        const notesData = await getArchivedNotes();
+        setNotes(notesData);
+      } catch (error) {
+        console.error('Error fetching archived notes:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchNotes();
+  }, []);
+
   const filteredNotes = keyword 
-    ? archivedNotes.filter(note => 
+    ? notes.filter(note => 
         note.title.toLowerCase().includes(keyword.toLowerCase())
       )
-    : archivedNotes;
+    : notes;
+
+  if (isLoading) {
+    return (
+      <div className="loading-container">
+        <div className="loading-spinner"></div>
+        <p>Loading archived notes...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="archived-page">
-      <SearchBar placeholder="Cari catatan arsip..." />
-      
+      <div className="search-container">
+        <SearchBar placeholder={texts.searchArchived} />
+      </div>
       <div className="notes-list">
         {filteredNotes.length > 0 ? (
           filteredNotes.map(note => (
-            <NoteItem key={note.id} note={note} />
+            <NoteItem key={note.id} note={note} onUpdate={() => window.location.reload()} />
           ))
         ) : (
-          <div className="empty-message">
-            {keyword ? `Tidak ada catatan arsip dengan kata kunci "${keyword}"` : 'Arsip kosong'}
+          <div className="empty-state">
+            <h3>{keyword ? `No archived notes found for "${keyword}"` : texts.noArchived}</h3>
           </div>
         )}
       </div>
